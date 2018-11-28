@@ -97,6 +97,20 @@
                 camFolder.add(camPos, "z", -halfLength, halfLength, 0.25).listen();
                 camFolder.add(controls, "hat", 0, 1000, 1.0).listen();
                 camFolder.add(controls, "moveSpeed", 1.0, 100.0, 0.5).listen();
+
+                var terrainMaterial = gui.addFolder('terrainMaterial');
+                var uSplat1Repeat = terrainMaterial.addFolder('uSplat1Repeat');
+                uSplat1Repeat.add(terrainMesh.material.uniforms.uSplat1Repeat.value, "x", 1, 5000, 0.25).listen();
+                uSplat1Repeat.add(terrainMesh.material.uniforms.uSplat1Repeat.value, "y", 1, 5000, 0.25).listen();
+                var uSplat2Repeat = terrainMaterial.addFolder('uSplat2Repeat');
+                uSplat2Repeat.add(terrainMesh.material.uniforms.uSplat2Repeat.value, "x", 1, 5000, 0.25).listen();
+                uSplat2Repeat.add(terrainMesh.material.uniforms.uSplat2Repeat.value, "y", 1, 5000, 0.25).listen();
+                var uSplat3Repeat = terrainMaterial.addFolder('uSplat3Repeat');
+                uSplat3Repeat.add(terrainMesh.material.uniforms.uSplat3Repeat.value, "x", 1, 5000, 0.25).listen();
+                uSplat3Repeat.add(terrainMesh.material.uniforms.uSplat3Repeat.value, "y", 1, 5000, 0.25).listen();
+                var uSplat4Repeat = terrainMaterial.addFolder('uSplat4Repeat');
+                uSplat4Repeat.add(terrainMesh.material.uniforms.uSplat4Repeat.value, "x", 1, 5000, 0.25).listen();
+                uSplat4Repeat.add(terrainMesh.material.uniforms.uSplat4Repeat.value, "y", 1, 5000, 0.25).listen();
             }
 
             //

@@ -54,6 +54,18 @@ var terrainVertexShader = [
 
 "}"].join("\n");
 
+terrainVertexShader = `
+
+varying vec2 vUv;
+void main()
+{
+    vUv = uv;
+    vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+    gl_Position = projectionMatrix * mvPosition;
+}
+
+`
+
 
 var terrainFragShader = [
 
@@ -124,3 +136,12 @@ THREE.ShaderChunk[ "fog_pars_fragment" ],
     //THREE.ShaderChunk["fog_fragment"],
 "}",
 ].join("\n");
+
+
+terrainFragShader = `
+
+varying vec2 vUv;
+void main( void ) {
+    gl_FragColor.xyz = vec3(vUv.x, vUv.y, 0.0);
+}
+`

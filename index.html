@@ -7,7 +7,7 @@
     </head>
     <body style="margin: 0px; overflow: hidden;">
 
-        <script src="js/Three.js"></script>
+        <script src="js/three.js"></script>
         <script src="js/stats.min.js"></script>
         <script src="js/dat.gui.min.js"></script>
         <script src="js/Detector.js"></script>
@@ -15,26 +15,23 @@
         <script src="js/TerrainControls.js"></script>
         <script src="js/TerrainShaders.js"></script>
         <script src="js/TerrainMaterial.js"></script>
-        <!-- <script src="js/RayCaster2.js"></script> -->
 
         <script>
 
             if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
 
-            var mainCamera, mainScene;
-            var skyCamera, skyScene, skyMesh;
+            var camera, scene;
 
             var renderer;
             var controls;
             var terrainGeom, terrainMesh;
 
-            var debugSphere;
-
             var clock = new THREE.Clock();
             var stats;
 
-            var mouseX = 0;
-            var mouseY = 0;
+			var helper;
+			var raycaster = new THREE.Raycaster();
+            var mouse = new THREE.Vector2();
 
             initScene();
             initTerrain();
@@ -44,111 +41,35 @@
 
             function initScene() {
 
-                mainScene = new THREE.Scene();
-                mainCamera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, .1, 20000 );
+                scene = new THREE.Scene();
+                camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, .1, 20000 );
 
                 // 0xDFF8FD matches the skybox at the horizon
                 // 0xf9eaa9
-                mainScene.fog = new THREE.Fog( 0xDFF8FD, 10.0, 1000.0 );
+                scene.fog = new THREE.Fog( 0xDFF8FD, 10.0, 1000.0 );
 
                 var ambientLight = new THREE.AmbientLight( 0x111111 );
 
                 var sunLight = new THREE.DirectionalLight(0xffffff, 1.0);
                 sunLight.position.y = sunLight.position.x = 10.0;
 
-                debugSphere = new THREE.Mesh(
-                    new THREE.SphereGeometry(10, 10, 10),
-                    new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load("textures/debug/checker_large.png") } )
-                );
-                debugSphere.position.y = 100;
-
-                mainScene.add( debugSphere );
-
-                mainScene.add( ambientLight );
-                mainScene.add( sunLight );
-
+                scene.add( ambientLight );
+                scene.add( sunLight );
 
                 renderer = new THREE.WebGLRenderer();
                 renderer.setSize( window.innerWidth, window.innerHeight );
                 renderer.autoClearColor = false;
 
                 document.body.appendChild(renderer.domElement);
-                document.body.addEventListener( 'keydown', onKeyDown, false);
-                document.body.addEventListener( 'mousemove', onMouseMove, false);
+                document.body.addEventListener( 'mousedown', onMouseDown, false);
 
                 stats = new Stats();
                 stats.domElement.style.position = 'absolute';
                 stats.domElement.style.top = '0px';
                 document.body.appendChild( stats.domElement );
-            }
 
-            //
-
-            function initGUI() {
-
-                var halfWidth = terrainGeom.width / 2;
-                var halfLength = terrainGeom.length / 2;
-
-                var camPos = controls.getObject().position;
-
-                var gui = new dat.GUI();
-                var camFolder = gui.addFolder('mainCamera');
-                camFolder.add(camPos, "x", -halfWidth, halfWidth, 0.25).listen();
-                camFolder.add(camPos, "z", -halfLength, halfLength, 0.25).listen();
-                camFolder.add(controls, "hat", 0, 1000, 1.0).listen();
-                camFolder.add(controls, "moveSpeed", 1.0, 100.0, 0.5).listen();
-
-                var terrainMaterial = gui.addFolder('terrainMaterial');
-                var uSplat1Repeat = terrainMaterial.addFolder('uSplat1Repeat');
-                uSplat1Repeat.add(terrainMesh.material.uniforms.uSplat1Repeat.value, "x", 1, 5000, 0.25).listen();
-                uSplat1Repeat.add(terrainMesh.material.uniforms.uSplat1Repeat.value, "y", 1, 5000, 0.25).listen();
-                var uSplat2Repeat = terrainMaterial.addFolder('uSplat2Repeat');
-                uSplat2Repeat.add(terrainMesh.material.uniforms.uSplat2Repeat.value, "x", 1, 5000, 0.25).listen();
-                uSplat2Repeat.add(terrainMesh.material.uniforms.uSplat2Repeat.value, "y", 1, 5000, 0.25).listen();
-                var uSplat3Repeat = terrainMaterial.addFolder('uSplat3Repeat');
-                uSplat3Repeat.add(terrainMesh.material.uniforms.uSplat3Repeat.value, "x", 1, 5000, 0.25).listen();
-                uSplat3Repeat.add(terrainMesh.material.uniforms.uSplat3Repeat.value, "y", 1, 5000, 0.25).listen();
-                var uSplat4Repeat = terrainMaterial.addFolder('uSplat4Repeat');
-                uSplat4Repeat.add(terrainMesh.material.uniforms.uSplat4Repeat.value, "x", 1, 5000, 0.25).listen();
-                uSplat4Repeat.add(terrainMesh.material.uniforms.uSplat4Repeat.value, "y", 1, 5000, 0.25).listen();
-            }
-
-            //
-
-             function initSky() {
-
-                skyScene = new THREE.Scene();
-                skyCamera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, .1, 20000 );
-
-                // We'll be setting yaw and pitch from the control which is applied in that order
-                skyCamera.eulerOrder = "YXZ";
-
-                var path = "textures/sunnysky/";
-                var format = '.jpg';
-                var urls = [
-                    path + 'px' + format, path + 'nx' + format,
-                    path + 'py' + format, path + 'ny' + format,
-                    path + 'pz' + format, path + 'nz' + format
-                ];
-
-                skyCubemap = THREE.ImageUtils.loadTextureCube( urls );
-
-                var shader = THREE.ShaderLib["cube"];
-                shader.uniforms["tCube"].value = skyCubemap;
-
-                // We're inside the box, so make sure to render the backsides
-                // It will typically be rendered first in the mainScene and without depth so anything else will be drawn in front
-                var skyMaterial = new THREE.ShaderMaterial({
-                    fragmentShader : shader.fragmentShader,
-                    vertexShader   : shader.vertexShader,
-                    uniforms       : shader.uniforms,
-                    depthWrite     : false,
-                    side           : THREE.BackSide
-                });
-
-                // The box dimension size doesn't matter that much when the mainCamera is in the center.  Experiment with the values.
-                skyboxMesh = new THREE.Mesh(new THREE.CubeGeometry(10000, 10000, 10000, 1, 1, 1), skyMaterial);
-                skyScene.add(skyboxMesh);
+				helper = new THREE.Mesh(new THREE.ConeBufferGeometry( .1, 1, 3 ).translate( 0, 0.5, 0 ).rotateX( Math.PI / 2 ), new THREE.MeshNormalMaterial() );
+				scene.add( helper );
             }
 
             //
@@ -175,22 +96,35 @@
                     uniforms: terrainUniforms,
                     vertexShader: terrainVertexShader,
                     fragmentShader:terrainFragShader,
-                    lights: true,
-                    fog: true
                 });
 
                 terrainMesh = new THREE.Mesh( terrainGeom.bufferGeom, terrainMaterial );
 
-                mainScene.add(terrainMesh);
+                scene.add(terrainMesh);
             }
 
-            //
+             function initSky() {
+
+                //cubemap
+                var path = "textures/sunnysky/";
+                var format = '.jpg';
+                var urls = [
+                    path + 'px' + format, path + 'nx' + format,
+                    path + 'py' + format, path + 'ny' + format,
+                    path + 'pz' + format, path + 'nz' + format
+                ];
+				var reflectionCube = new THREE.CubeTextureLoader().load( urls );
+                reflectionCube.format = THREE.RGBFormat;
+                
+                scene.background = reflectionCube;
+
+            }
 
             // Called before we update (animate) for the first time
             function startAnimating() {
 
-                controls = new THREE.TerrainControls(mainCamera, terrainGeom, 3.0);
-                mainScene.add(controls.getObject());
+                controls = new THREE.TerrainControls(camera, terrainGeom, 3.0);
+                scene.add(controls.getObject());
 
                 initGUI();
 
@@ -200,14 +134,47 @@
                 window.addEventListener( 'resize', onWindowResize, false );
             }
 
-            //
+            function initGUI() {
+
+                var halfWidth = terrainGeom.width / 2;
+                var halfLength = terrainGeom.length / 2;
+
+                var camPos = controls.getObject().position;
+
+                var gui = new dat.GUI();
+                var camFolder = gui.addFolder('camera');
+                camFolder.add(camPos, "x", -halfWidth, halfWidth, 0.25).listen();
+                camFolder.add(camPos, "z", -halfLength, halfLength, 0.25).listen();
+                camFolder.add(controls, "hat", 0, 1000, 1.0).listen();
+                camFolder.add(controls, "moveSpeed", 1.0, 100.0, 0.5).listen();
+                
+                if (terrainMesh.material instanceof THREE.TerrainMaterial) {
+
+                    var terrainMaterial = gui.addFolder('terrainMaterial');
+                    var splatRepeat = {
+                        uSplat1Repeat: terrainMesh.material.uniforms.uSplat1Repeat.value.x,
+                        uSplat2Repeat: terrainMesh.material.uniforms.uSplat2Repeat.value.x,
+                        uSplat3Repeat: terrainMesh.material.uniforms.uSplat3Repeat.value.x,
+                        uSplat4Repeat: terrainMesh.material.uniforms.uSplat4Repeat.value.x
+                    }
+                    
+                    gui.add(splatRepeat, "uSplat1Repeat", 1, 5000, 0.25).listen().onChange(onChange);
+                    gui.add(splatRepeat, "uSplat2Repeat", 1, 5000, 0.25).listen().onChange(onChange);
+                    gui.add(splatRepeat, "uSplat3Repeat", 1, 5000, 0.25).listen().onChange(onChange);
+                    gui.add(splatRepeat, "uSplat4Repeat", 1, 5000, 0.25).listen().onChange(onChange);
+
+                    function onChange(value) {
+                        terrainMesh.material.uniforms[this.property].value.x = value;
+                        terrainMesh.material.uniforms[this.property].value.y = value;
+                    }
+
+                }
+            }
 
             function animate() {
 
                 var delta = clock.getDelta();
                 controls.update( delta );
-
-                skyCamera.rotation.set(controls.getPitch(), controls.getYaw(), 0.0);
 
                 requestAnimationFrame( animate );
                 render();
@@ -215,62 +182,32 @@
                 stats.update();
             }
 
-            //
-
             function render() {
-                renderer.render( skyScene, skyCamera );
-                renderer.render( mainScene, mainCamera );
+                renderer.render( scene, camera );
             }
-
-            //
 
             function onWindowResize() {
 
                 var windowHalfX = window.innerWidth / 2;
                 var windowHalfY = window.innerHeight / 2;
 
-                mainCamera.aspect = skyCamera.aspect = window.innerWidth / window.innerHeight;
-                mainCamera.updateProjectionMatrix();
-                skyCamera.updateProjectionMatrix();
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
 
                 renderer.setSize( window.innerWidth, window.innerHeight );
             }
 
-            //
-
-            function onMouseMove(event) {
-
-                mouseX = ( event.clientX / window.innerWidth ) * 2 - 1;
-                mouseY = -( event.clientY / window.innerHeight ) * 2 + 1;
-            }
-
-            //
-
-            function onKeyDown(event) {
-                // todo 
-                // if (event.keyCode == 32 || event.shiftKey) {
-
-                //     var vector = new THREE.Vector3( mouseX, mouseY, mainCamera.near );
-
-                //     // Convert the [-1, 1] screen coordinate into a world coordinate on the near plane
-                //     var projector = new THREE.Projector();
-                //     projector.unprojectVector( vector, mainCamera );
-
-                //     var cameraPosition = controls.getObject().position;
-
-                //     vector.sub( cameraPosition ).normalize();
-
-                //     var raycaster = new THREE.Raycaster( cameraPosition, vector);
-
-                //     // See if the ray from the camera into the world hits one of our meshes
-                //     var intersects = raycaster.intersectObject( terrainMesh );
-
-                //     // Toggle rotation bool for meshes that we clicked
-                //     if ( intersects.length > 0 ) {
-                //         debugSphere.position = intersects[0].point;
-                //     }
-                // }
-
+            function onMouseDown(event) {
+                if (!event.ctrlKey) return;
+                mouse.x = ( event.clientX / renderer.domElement.clientWidth ) * 2 - 1;
+				mouse.y = - ( event.clientY / renderer.domElement.clientHeight ) * 2 + 1;
+				raycaster.setFromCamera( mouse, camera );
+				var intersects = raycaster.intersectObject( terrainMesh );
+				if ( intersects.length > 0 ) {
+					helper.position.set( 0, 0, 0 );
+					helper.lookAt( intersects[ 0 ].face.normal );
+					helper.position.copy( intersects[ 0 ].point );
+				}
             }
 
         </script>
